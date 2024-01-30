@@ -16,7 +16,7 @@ GOOGLE_REDIRECT_URI=http://localhost:5175/auth/google/callback
 ## Install
 
 ```shell
-% go get
+% go get -v ./...
 ```
 
 ## run
