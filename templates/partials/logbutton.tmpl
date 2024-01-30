@@ -1,0 +1,11 @@
+{{define "logbutton"}}
+    {{if .LoggedIn}}
+        <form method="POST" action="/logout">
+            <input type="submit" value="Logout">
+        </form>
+    {{else}}
+        <form method="POST" action="/login">
+            <input type="submit" value="Login">
+        </form>
+    {{end}}
+{{end}}
