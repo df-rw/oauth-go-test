@@ -1,14 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"html/template"
 	"time"
 
+	"github.com/alexedwards/scs/sqlite3store"
 	"github.com/alexedwards/scs/v2"
 	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Config struct {
@@ -16,6 +20,7 @@ type Config struct {
 	GoogleClientID     string `env:"GOOGLE_CLIENT_ID"`
 	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
 	GoogleRedirectURI  string `env:"GOOGLE_REDIRECT_URI"`
+	DatabaseName       string `env:"DATABASE"`
 }
 
 type Application struct {
@@ -60,8 +65,14 @@ func New() *Application {
 
 	// Session management using scs:
 	// https://pkg.go.dev/github.com/alexedwards/scs/v2
+	db, err := sql.Open("sqlite3", app.cfg.DatabaseName)
+	if err != nil {
+		panic(err)
+	}
+
 	app.sessionManager = scs.New()
-	app.sessionManager.Lifetime = 24 * time.Hour
+	app.sessionManager.Lifetime = 5 * time.Minute
+	app.sessionManager.Store = sqlite3store.New(db)
 
 	return app
 }

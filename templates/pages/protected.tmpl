@@ -4,7 +4,28 @@
 
     <h1>this is a protected page</h1>
 
+    <h3>Userinfo</h3>
     {{.Userinfo}}
+
+    <h3>Token</h3>
+    <table>
+        <tr>
+            <td>AccessToken</td>
+            <td>{{ .Token.AccessToken}}</td>
+        </tr>
+        <tr>
+            <td>TokenType</td>
+            <td>{{ .Token.TokenType}}</td>
+        </tr>
+        <tr>
+            <td>RefreshToken</td>
+            <td>{{ .Token.RefreshToken}}</td>
+        </tr>
+        <tr>
+            <td>Expiry</td>
+            <td>{{ .Token.Expiry}}</td>
+        </tr>
+    </table>
 
     {{template "pagebottom" .}}
 {{end}}
