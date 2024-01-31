@@ -31,7 +31,7 @@ func main() {
 		r.Post("/login", app.login)                // client hit the button
 		r.Post("/logout", app.logout)              // client hit the other button
 		r.Get(authRedirURL.Path, app.authRedirect) // oauth redirect path
-		r.Get("/login-renew", app.loginRenew)
+		r.Get("/login", app.login)
 	})
 
 	// Protected endpoints.

@@ -71,7 +71,7 @@ func New() *Application {
 	}
 
 	app.sessionManager = scs.New()
-	app.sessionManager.Lifetime = 5 * time.Minute
+	app.sessionManager.Lifetime = 24 * time.Hour
 	app.sessionManager.Store = sqlite3store.New(db)
 
 	return app

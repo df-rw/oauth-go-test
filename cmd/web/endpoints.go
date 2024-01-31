@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -84,6 +85,8 @@ func (app *Application) login(w http.ResponseWriter, r *http.Request) {
 
 	url := app.authConf.AuthCodeURL(state, options...)
 
+	fmt.Printf("login url: %s\n", url)
+
 	http.Redirect(w, r, url, http.StatusSeeOther) // FIXME check status
 }
 
@@ -91,6 +94,7 @@ func (app *Application) login(w http.ResponseWriter, r *http.Request) {
 // service. Here we check the response, exchange code for access token, store
 // the token in the session, and carry on.
 func (app *Application) authRedirect(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("** authRedirect")
 	ctx := r.Context()
 
 	authState := r.FormValue("state")
@@ -129,9 +133,7 @@ func (app *Application) authRedirect(w http.ResponseWriter, r *http.Request) {
 		// - https://pkg.go.dev/golang.org/x/oauth2#AuthCodeOption
 		//
 		// So: we'll set a marker in this users' session to indicate to /login that
-		// they need to give consent again, and send them off to a login wrapper
-		// page (we can't redirect with POST to /login) from which they can
-		// press another button to login.
+		// they need to give consent again.
 		//
 		// NOTE I think this dance is only required if we kill the session
 		// (ie. the user logs out, our session store dies).
@@ -140,7 +142,7 @@ func (app *Application) authRedirect(w http.ResponseWriter, r *http.Request) {
 		// login on another device they won't get a refresh token. Both devices
 		// will have a different access token. Not sure how this works.
 		app.sessionManager.Put(ctx, "get-consent", true)
-		http.Redirect(w, r, "/login-renew", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -179,23 +181,78 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 	pageData := app.commonPageData(r)
 
 	var token oauth2.Token
-	t := app.sessionManager.Get(r.Context(), "token").([]byte)
+	t, ok := app.sessionManager.Get(r.Context(), "token").([]byte)
+	if !ok {
+		app.serverError(w, r, fmt.Errorf("failed to type assert token"))
+	}
 	err := json.Unmarshal(t, &token)
 	if err != nil {
 		app.serverError(w, r, fmt.Errorf("failed to unmarshal token"))
 		return
 	}
 
-	client := app.authConf.Client(r.Context(), &token)
+	fmt.Println("token from store")
+	fmt.Printf("- complete token: %+v\n", token)
+	fmt.Printf("- valid? %t\n", token.Valid())
+	fmt.Printf("- expiry %s\n", token.Expiry)
+	fmt.Printf("- access token %s\n", token.AccessToken)
+	fmt.Printf("- refresh token %s\n", token.RefreshToken)
+	fmt.Printf("- type %s\n", token.Type())
+	/*
+		if !token.Valid() {
+			fmt.Printf("token is invalid - trying ideas\n")
+			token = oauth2.Token{
+				RefreshToken: token.RefreshToken,
+				//AccessToken:  token.AccessToken,
+				Expiry:    token.Expiry,
+				TokenType: token.TokenType,
+			}
+		}
+		fmt.Printf("token given to Client(): %+v\n", token)
+
+		client := app.authConf.Client(r.Context(), &token) // refresh should happen here
+	*/
+
+	// Ok, well, let's try another random stackoverflow post:
+	// - https://stackoverflow.com/questions/46475997/renew-access-token-using-golang-oauth2-library
+	tokenSource := app.authConf.TokenSource(context.TODO(), &token)
+	newToken, err := tokenSource.Token()
+	if err != nil {
+		app.serverError(w, r, err)
+		return
+	}
+	// If we've updated the token, store it.
+	if newToken.AccessToken != token.AccessToken {
+		fmt.Printf("** access token has been updated")
+		t, err := json.Marshal(*newToken)
+		if err != nil {
+			app.serverError(w, r, fmt.Errorf("failed to marshal token"))
+			return
+		}
+		app.sessionManager.Put(r.Context(), "token", t)
+	}
+
+	// Create client with new token.
+	client := oauth2.NewClient(context.TODO(), tokenSource)
+
+	fmt.Println("token after authConf.Client()")
+	fmt.Printf("- complete newToken: %+v\n", token)
+	fmt.Printf("- valid? %t\n", newToken.Valid())
+	fmt.Printf("- expiry %s\n", newToken.Expiry)
+	fmt.Printf("- access newToken %s\n", token.AccessToken)
+	fmt.Printf("- refresh newToken %s\n", token.RefreshToken)
+	fmt.Printf("- type %s\n", newToken.Type())
 
 	// The client will automatically refresh expired tokens:
 	// - https://pkg.go.dev/golang.org/x/oauth2#Config.Client
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + newToken.AccessToken)
 	if err != nil {
 		app.serverError(w, r, err)
 		return
 	}
 	defer resp.Body.Close()
+
+	fmt.Println("response", resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -210,7 +267,7 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pageData["Userinfo"] = userinfo
-	pageData["Token"] = token
+	pageData["Token"] = newToken
 
 	app.render(w, "protected", pageData, http.StatusOK)
 }
@@ -218,9 +275,4 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 // notFound renders a 404 page, and sends a 404 status code.
 func (app *Application) notFound(w http.ResponseWriter, r *http.Request) {
 	app.render(w, "404", nil, http.StatusNotFound)
-}
-
-// loginRenew renders our faux-you-need-to-login-again page.
-func (app *Application) loginRenew(w http.ResponseWriter, r *http.Request) {
-	app.render(w, "login-renew", nil, http.StatusOK)
 }
