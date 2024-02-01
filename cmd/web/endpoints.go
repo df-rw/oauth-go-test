@@ -102,6 +102,10 @@ func (app *Application) authRedirect(w http.ResponseWriter, r *http.Request) {
 	state := app.sessionManager.GetString(ctx, "state")
 	verifier := app.sessionManager.GetString(ctx, "verifier")
 
+	// Don't need these guys any more.
+	app.sessionManager.Remove(ctx, "state")
+	app.sessionManager.Remove(ctx, "verifier")
+
 	if authState != state {
 		app.serverError(w, r, errors.New("state mismatch"))
 		return
@@ -144,10 +148,6 @@ func (app *Application) authRedirect(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-
-	// Don't need these guys any more.
-	app.sessionManager.Remove(ctx, "state")
-	app.sessionManager.Remove(ctx, "verifier")
 
 	// Storing the token structure itself didn't work (probably PEBKAC). Throw
 	// bytes at session store instead.
