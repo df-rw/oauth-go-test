@@ -247,6 +247,7 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 	}
 	pageData["Userinfo"] = userinfo
 	pageData["Token"] = newToken
+	pageData["SessionManager"] = app.sessionManager
 
 	app.render(w, "protected", pageData, http.StatusOK)
 }

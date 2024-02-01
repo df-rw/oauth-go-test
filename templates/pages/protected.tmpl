@@ -27,5 +27,14 @@
         </tr>
     </table>
 
+    <h3>Session</h3>
+    <table>
+        <tr><td>IdleTimeout</td><td>{{.SessionManager.IdleTimeout}}</td></tr>
+        <tr><td>Lifetime</td><td>{{.SessionManager.Lifetime}}</td></tr>
+        <tr><td>Store</td><td>{{.SessionManager.Store}}</td></tr>
+        <tr><td>Cookie</td><td>{{.SessionManager.Cookie}}</td></tr>
+        <tr><td>Codec</td><td>{{.SessionManager.Codec}}</td></tr>
+    </table>
+
     {{template "pagebottom" .}}
 {{end}}

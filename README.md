@@ -50,4 +50,4 @@ create index sessions_expiry_idx on sessions(expiry);
 ## TODO
 
 -   replace marshalling / unmarshalling the token with registration of it with gob
--   hmm, need to double check the Client call - using r.Context(), try context.TODO() instead
+-   figure out how to kill the session Lifetime
