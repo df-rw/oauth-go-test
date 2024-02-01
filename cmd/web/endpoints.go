@@ -94,7 +94,6 @@ func (app *Application) login(w http.ResponseWriter, r *http.Request) {
 // service. Here we check the response, exchange code for access token, store
 // the token in the session, and carry on.
 func (app *Application) authRedirect(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("** authRedirect")
 	ctx := r.Context()
 
 	authState := r.FormValue("state")
@@ -159,12 +158,6 @@ func (app *Application) authRedirect(w http.ResponseWriter, r *http.Request) {
 	}
 	app.sessionManager.Put(ctx, "token", t)
 
-	// Now when we want to use it, we need to:
-	// client := app.authConf.Client(r.Context(), token)
-	// client.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
-	// The client call will refresh the access and refresh tokens if they're
-	// expired.
-
 	http.Redirect(w, r, "/protected", http.StatusSeeOther) // FIXME check status
 }
 
@@ -176,10 +169,12 @@ func (app *Application) logout(w http.ResponseWriter, r *http.Request) {
 
 // protected renders a page that requires some sort of authentication to
 // access. The protection happens in the middleware; see
-// middleware.go:authProtected().
+// middleware.go:authProtected(). This endpoint also makes a call to a Google
+// endpoint, to demonstrate the refresh token check / dance.
 func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 	pageData := app.commonPageData(r)
 
+	// Grab our current auth token.
 	var token oauth2.Token
 	t, ok := app.sessionManager.Get(r.Context(), "token").([]byte)
 	if !ok {
@@ -192,31 +187,16 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println("token from store")
-	fmt.Printf("- complete token: %+v\n", token)
 	fmt.Printf("- valid? %t\n", token.Valid())
 	fmt.Printf("- expiry %s\n", token.Expiry)
 	fmt.Printf("- access token %s\n", token.AccessToken)
 	fmt.Printf("- refresh token %s\n", token.RefreshToken)
 	fmt.Printf("- type %s\n", token.Type())
-	/*
-		if !token.Valid() {
-			fmt.Printf("token is invalid - trying ideas\n")
-			token = oauth2.Token{
-				RefreshToken: token.RefreshToken,
-				//AccessToken:  token.AccessToken,
-				Expiry:    token.Expiry,
-				TokenType: token.TokenType,
-			}
-		}
-		fmt.Printf("token given to Client(): %+v\n", token)
 
-		client := app.authConf.Client(r.Context(), &token) // refresh should happen here
-	*/
-
-	// Ok, well, let's try another random stackoverflow post:
+	// Ok, well, let's try some random stackoverflow posts:
 	// - https://stackoverflow.com/questions/46475997/renew-access-token-using-golang-oauth2-library
-	tokenSource := app.authConf.TokenSource(context.TODO(), &token)
-	newToken, err := tokenSource.Token()
+	// - https://stackoverflow.com/questions/52825464/how-to-use-google-refresh-token-when-the-access-token-is-expired-in-go
+	newToken, err := app.authConf.TokenSource(context.TODO(), &token).Token()
 	if err != nil {
 		app.serverError(w, r, err)
 		return
@@ -233,14 +213,13 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create client with new token.
-	client := oauth2.NewClient(context.TODO(), tokenSource)
+	client := app.authConf.Client(context.TODO(), newToken) // refresh should happen here
 
-	fmt.Println("token after authConf.Client()")
-	fmt.Printf("- complete newToken: %+v\n", token)
+	fmt.Println("newToken after authConf.Client()")
 	fmt.Printf("- valid? %t\n", newToken.Valid())
 	fmt.Printf("- expiry %s\n", newToken.Expiry)
-	fmt.Printf("- access newToken %s\n", token.AccessToken)
-	fmt.Printf("- refresh newToken %s\n", token.RefreshToken)
+	fmt.Printf("- access newToken %s\n", newToken.AccessToken)
+	fmt.Printf("- refresh newToken %s\n", newToken.RefreshToken)
 	fmt.Printf("- type %s\n", newToken.Type())
 
 	// The client will automatically refresh expired tokens:

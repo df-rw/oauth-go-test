@@ -45,3 +45,9 @@ create index sessions_expiry_idx on sessions(expiry);
 -   https://developers.google.com/people/quickstart/go
 -   https://medium.com/@_RR/google-oauth-2-0-and-golang-4cc299f8c1ed
 -   https://github.com/alexedwards/scs/tree/master/sqlite3store
+
+
+## TODO
+
+-   replace marshalling / unmarshalling the token with registration of it with gob
+-   hmm, need to double check the Client call - using r.Context(), try context.TODO() instead
