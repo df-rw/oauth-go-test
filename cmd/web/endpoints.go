@@ -85,8 +85,6 @@ func (app *Application) login(w http.ResponseWriter, r *http.Request) {
 
 	url := app.authConf.AuthCodeURL(state, options...)
 
-	fmt.Printf("login url: %s\n", url)
-
 	http.Redirect(w, r, url, http.StatusSeeOther) // FIXME check status
 }
 
@@ -186,13 +184,6 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("token from store")
-	fmt.Printf("- valid? %t\n", token.Valid())
-	fmt.Printf("- expiry %s\n", token.Expiry)
-	fmt.Printf("- access token %s\n", token.AccessToken)
-	fmt.Printf("- refresh token %s\n", token.RefreshToken)
-	fmt.Printf("- type %s\n", token.Type())
-
 	// Ok, well, let's try some random stackoverflow posts:
 	// - https://stackoverflow.com/questions/46475997/renew-access-token-using-golang-oauth2-library
 	// - https://stackoverflow.com/questions/52825464/how-to-use-google-refresh-token-when-the-access-token-is-expired-in-go
@@ -203,7 +194,7 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 	}
 	// If we've updated the token, store it.
 	if newToken.AccessToken != token.AccessToken {
-		fmt.Printf("** access token has been updated")
+		fmt.Println("** access token has been updated")
 		t, err := json.Marshal(*newToken)
 		if err != nil {
 			app.serverError(w, r, fmt.Errorf("failed to marshal token"))
@@ -213,14 +204,7 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create client with new token.
-	client := app.authConf.Client(context.TODO(), newToken) // refresh should happen here
-
-	fmt.Println("newToken after authConf.Client()")
-	fmt.Printf("- valid? %t\n", newToken.Valid())
-	fmt.Printf("- expiry %s\n", newToken.Expiry)
-	fmt.Printf("- access newToken %s\n", newToken.AccessToken)
-	fmt.Printf("- refresh newToken %s\n", newToken.RefreshToken)
-	fmt.Printf("- type %s\n", newToken.Type())
+	client := app.authConf.Client(context.TODO(), newToken)
 
 	// The client will automatically refresh expired tokens:
 	// - https://pkg.go.dev/golang.org/x/oauth2#Config.Client
@@ -230,8 +214,6 @@ func (app *Application) protected(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-
-	fmt.Println("response", resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

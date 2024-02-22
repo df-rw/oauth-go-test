@@ -1,0 +1,7 @@
+{{block "info" .}}
+    {{template "logbutton" .}}
+    {{template "servertime" .}}
+    {{if .Deadline}}
+        <p>session deadline is: {{.Deadline}}</p>
+    {{end}}
+{{end}}

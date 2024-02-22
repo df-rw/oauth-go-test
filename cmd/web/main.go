@@ -16,6 +16,7 @@ func main() {
 	// Router.
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.Use(app.renewSession)
 
 	// oauth: our redirect path comes from config
 	authRedirURL, err := url.Parse(app.cfg.GoogleRedirectURI)
